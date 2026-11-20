@@ -16,5 +16,9 @@ Check command: `mise exec -- pnpm check` (Ultracite lint, tsc, Knip, Vitest). CI
 
 - `src/client.ts`: HTTP, throttle, retry, GraphQL errors.
 - `src/partner.ts`: typed data access, one function per root field.
-- `src/reports.ts`: pure summaries over fetched rows.
-- `src/tools.ts`: MCP tool registration only.
+- `src/history.ts`: downloads and caches an app's full event timeline, a year per step.
+- `src/analytics/`: pure functions over that timeline. `ledger.ts` groups it per shop and replays subscription state; every report builds on it.
+- `src/reports.ts`: pure summaries over one page range of rows (raw summary tools).
+- `src/tools/`: MCP tool registration only. `src/instructions.ts` is what clients read on connect.
+
+Analytics tests use the hand-built app in `test/fixture.ts`. Its expected numbers are worked out by hand in the comment above it; keep them independent of the code under test.

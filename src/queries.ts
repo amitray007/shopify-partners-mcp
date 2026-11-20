@@ -60,7 +60,10 @@ export const EVENTS_QUERY = `query Events($filter: EventFilterInput, $first: Int
         ... on Relationship { relationshipState: state reason reasonDescription }
         ... on SubscriptionStatus {
           subscriptionState: state cancelEffectiveOn
-          plan { handle billingPeriod trialDays }
+          plan {
+            handle billingPeriod trialDays
+            prices { __typename currencyCode ... on FlatRatePlanPrice { amount } }
+          }
         }
         ... on Charge { chargeId chargeType amount ${MONEY} usageQuantity planHandle description }
         ... on Earning {
