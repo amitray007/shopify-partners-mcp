@@ -2,6 +2,8 @@
 # Runtime dependency updates use the fix: prefix, so release-please ships them in a patch release.
 # Dev dependency and GitHub Actions updates use chore: and ci:, which do not trigger a release.
 # Majors arrive one per pull request, so each gets its own look.
+# A release must be 7 days old before Dependabot offers it, which keeps a pulled or
+# compromised release out of the update.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -9,6 +11,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: fix
       prefix-development: chore
@@ -34,6 +38,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: ci
     groups:
