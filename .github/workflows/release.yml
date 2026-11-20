@@ -46,8 +46,15 @@ jobs:
         if: steps.prepare.outputs.prs_created == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ fromJSON(steps.prepare.outputs.pr).number }}
+          # Parsed in the script: GitHub evaluates step env even when the step is skipped, and
+          # fromJSON fails on the empty output of a run with nothing to release.
+          PR_JSON: ${{ steps.prepare.outputs.pr }}
         run: |
+          PR_NUMBER="$(jq -r '.number // empty' <<< "${PR_JSON:-null}")"
+          if [ -z "${PR_NUMBER}" ]; then
+            echo "release-please reported no release PR to merge."
+            exit 0
+          fi
           # GitHub may still be computing mergeability right after release-please opens the PR.
           for attempt in 1 2 3 4 5; do
             if gh pr merge "${PR_NUMBER}" --squash --repo "${GITHUB_REPOSITORY}"; then
