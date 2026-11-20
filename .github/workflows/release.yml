@@ -1,11 +1,13 @@
 name: Release
 
-# release-please keeps a release PR open from the Conventional Commits on main. Merging that PR
-# is the approval: it tags vX.Y.Z and creates the GitHub release. The npm job then checks, builds,
-# packs, and smoke-tests that tag and publishes it through npm trusted publishing, so no npm
-# token is stored. npm trusts this file by name; rename it only together with the npm setting.
-# The npm job runs only when the repository variable NPM_PUBLISH is true. To retry a failed
-# publish, run this workflow by hand with the tag.
+# Every push to main that carries a feat: or fix: commit ships a release with no manual step.
+# release-please opens a release PR (version bump and changelog), this job merges it at once,
+# and a second release-please pass tags vX.Y.Z and creates the GitHub release. The merge happens
+# inside this run because a merge made with GITHUB_TOKEN does not start a new workflow run.
+# The npm job then checks, builds, packs, and smoke-tests that tag and publishes it through npm
+# trusted publishing, so no npm token is stored. npm trusts this file by name; rename it only
+# together with the npm setting. The npm job runs only when the repository variable NPM_PUBLISH
+# is true. To retry a failed publish, run this workflow by hand with the tag.
 
 on:
   push:
@@ -32,11 +34,31 @@ jobs:
       contents: write
       pull-requests: write
     outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
+      release_created: ${{ steps.release.outputs.release_created || steps.prepare.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name || steps.prepare.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: prepare
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      - name: Merge the release PR
+        if: steps.prepare.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ fromJSON(steps.prepare.outputs.pr).number }}
+        run: |
+          # GitHub may still be computing mergeability right after release-please opens the PR.
+          for attempt in 1 2 3 4 5; do
+            if gh pr merge "${PR_NUMBER}" --squash --repo "${GITHUB_REPOSITORY}"; then
+              exit 0
+            fi
+            sleep $((attempt * 5))
+          done
+          exit 1
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
+        if: steps.prepare.outputs.prs_created == 'true'
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
