@@ -63,7 +63,7 @@ export function createPartnerClient(
   return async <T>(query: string, variables?: Variables): Promise<T> => {
     const response = await send(query, variables, 0);
     if (!response.ok) {
-      throw new PartnerApiError(`Partner API returned HTTP ${response.status}`);
+      throw new PartnerApiError(describeStatus(response.status));
     }
     return readData<T>((await response.json()) as GraphqlResponse<T>);
   };
@@ -79,6 +79,16 @@ function createThrottle({ sleep, now }: ClientDeps): () => Promise<void> {
       await sleep(wait);
     }
   };
+}
+
+function describeStatus(status: number): string {
+  if (status === 401) {
+    return "Partner API returned HTTP 401: the access token is wrong or was revoked";
+  }
+  if (status === 403 || status === 404) {
+    return `Partner API returned HTTP ${status}: check SHOPIFY_PARTNER_ID is the Partner Dashboard number and the client has the needed permission`;
+  }
+  return `Partner API returned HTTP ${status}`;
 }
 
 function retryDelayMs(response: Response, attempt: number): number {

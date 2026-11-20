@@ -11,6 +11,7 @@ import {
 } from "./queries.ts";
 
 export const MAX_PAGE_SIZE = 100;
+export const MAX_EVENT_PAGE_SIZE = 250;
 
 interface ShopRef {
   id: string;
@@ -56,6 +57,14 @@ export interface Transaction {
   detail: string | null;
 }
 
+export interface Plan {
+  handle: string | null;
+  billingPeriod: "ANNUAL" | "EVERY_30_DAYS" | null;
+  trialDays: number | null;
+  prices: { __typename: string; currencyCode: string; amount?: string }[];
+}
+
+// One interface for the event union: fields of the other event kinds stay undefined.
 export interface PartnerEvent {
   __typename: string;
   id: string;
@@ -63,7 +72,23 @@ export interface PartnerEvent {
   eventType: string;
   shop: ShopRef | null;
   subject: { __typename: string; id: string; name: string } | null;
-  [field: string]: unknown;
+  relationshipState?: string;
+  reason?: string | null;
+  reasonDescription?: string | null;
+  subscriptionState?: string;
+  cancelEffectiveOn?: string | null;
+  plan?: Plan | null;
+  chargeType?: string;
+  amount?: Money;
+  planHandle?: string | null;
+  earningType?: string;
+  settlementDate?: string | null;
+  grossAmount?: Money;
+  netAmount?: Money;
+  shopifyFee?: Money;
+  money?: Money;
+  status?: string;
+  description?: string | null;
 }
 
 export interface TransactionFilter {
@@ -120,6 +145,11 @@ export function createPartner(request: PartnerRequest) {
       page: PageRequest
     ): Promise<Page<PartnerEvent>> {
       const { appId, shopId, ...rest } = filter;
+      if (shopId && !appId) {
+        throw new Error(
+          "The Partner API needs an appId to filter events by shop"
+        );
+      }
       const data = await request<{ events: Connection<PartnerEvent> }>(
         EVENTS_QUERY,
         {

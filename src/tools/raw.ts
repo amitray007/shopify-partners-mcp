@@ -1,37 +1,28 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
-import type { PartnerRequest } from "./client.ts";
-import { collectPages } from "./pages.ts";
-import { MAX_PAGE_SIZE } from "./partner.ts";
-import type { Partner } from "./partner.ts";
-import { assertReadOnlyQuery } from "./read-only.ts";
+import { collectPages } from "../pages.ts";
+import { assertReadOnlyQuery } from "../read-only.ts";
 import {
   mergeTimeline,
   RELATIONSHIP_EVENT_TYPES,
   summarizeInstalls,
   summarizeRevenue,
-} from "./reports.ts";
+} from "../reports.ts";
+import {
+  appIdInput,
+  dateTime,
+  id,
+  page,
+  READ_ONLY,
+  resolveAppId,
+  respond,
+  respondWith,
+} from "./shared.ts";
+import type { ToolContext } from "./shared.ts";
 
 // 20 pages of 100 rows take about five seconds at the Partner API's four requests per second.
 const MAX_REPORT_PAGES = 20;
-
-const READ_ONLY = { readOnlyHint: true, openWorldHint: true } as const;
-
-const id = (what: string) =>
-  z.string().describe(`${what} ID: the number or a gid:// ID`);
-const dateTime = (what: string) =>
-  z.iso.datetime({ offset: true }).describe(what);
-const page = {
-  first: z
-    .number()
-    .int()
-    .min(1)
-    .max(MAX_PAGE_SIZE)
-    .optional()
-    .describe("Page size, default 100"),
-  after: z.string().optional().describe("nextCursor from the previous page"),
-};
 
 const transactionFilter = {
   appId: id("App").optional(),
@@ -57,16 +48,11 @@ const eventWindow = {
   ).optional(),
 };
 
-interface ToolContext {
-  partner: Partner;
-  request: PartnerRequest;
-  appIds: string[];
-}
-
-export function registerTools(
+export function registerRawTools(
   server: McpServer,
-  { partner, request, appIds }: ToolContext
+  context: ToolContext
 ): void {
+  const { partner, request, appIds } = context;
   server.registerTool(
     "list_apps",
     {
@@ -173,20 +159,24 @@ export function registerTools(
     "shop_history",
     {
       description:
-        "Everything about one shop, newest first: install and billing events plus earnings transactions. Useful for support questions.",
+        "Everything about one shop for one app, newest first: install and billing events plus earnings transactions. Takes a shop ID or its myshopify.com domain. Useful for support questions.",
       inputSchema: z.object({
-        shopId: id("Shop"),
-        appId: id("App").optional(),
+        shop: z
+          .string()
+          .describe("Shop ID, shop GID, or example.myshopify.com"),
+        appId: appIdInput,
         ...eventWindow,
       }),
       annotations: READ_ONLY,
     },
-    async ({ shopId, appId, occurredAtMin, occurredAtMax }) => {
+    async ({ shop, appId, occurredAtMin, occurredAtMax }) => {
+      const app = resolveAppId(appId, appIds);
+      const shopId = await resolveShopId(context, app, shop);
       const [events, transactions] = await Promise.all([
         collectPages(
           (after) =>
             partner.listEvents(
-              { shopId, appId, occurredAtMin, occurredAtMax },
+              { shopId, appId: app, occurredAtMin, occurredAtMax },
               { after }
             ),
           MAX_REPORT_PAGES
@@ -196,7 +186,7 @@ export function registerTools(
             partner.listTransactions(
               {
                 shopId,
-                appId,
+                appId: app,
                 createdAtMin: occurredAtMin,
                 createdAtMax: occurredAtMax,
               },
@@ -206,6 +196,7 @@ export function registerTools(
         ),
       ]);
       return respondWith({
+        shopId,
         timeline: mergeTimeline(events.items, transactions.items),
         truncated: events.truncated || transactions.truncated,
       });
@@ -230,12 +221,31 @@ export function registerTools(
   );
 }
 
-async function respond(result: Promise<unknown>) {
-  return respondWith(await result);
-}
-
-function respondWith(value: unknown) {
-  return {
-    content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
-  };
+// A domain is matched through its transactions first (one request), then through the app's
+// cached event history.
+async function resolveShopId(
+  { partner, loadHistory }: ToolContext,
+  appId: string,
+  shop: string
+): Promise<string> {
+  if (!shop.includes(".")) {
+    return shop;
+  }
+  const domain = shop.trim().toLowerCase();
+  const { items } = await partner.listTransactions(
+    { appId, myshopifyDomain: domain },
+    { first: 1 }
+  );
+  const fromTransactions = items[0]?.shop?.id;
+  if (fromTransactions) {
+    return fromTransactions;
+  }
+  const history = await loadHistory(appId);
+  const match = history.events.find(
+    (event) => event.shop?.myshopifyDomain === domain
+  );
+  if (!match?.shop) {
+    throw new Error(`No shop ${domain} found for app ${appId}`);
+  }
+  return match.shop.id;
 }
