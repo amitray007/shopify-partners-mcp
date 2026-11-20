@@ -2,7 +2,9 @@
 
 A generic, open-source MCP server over the Shopify Partner API. Stdio transport. Node 24 and pnpm, pinned in `mise.toml`.
 
-Check command: `mise exec -- pnpm check` (Ultracite lint, tsc, Knip, Vitest). CI runs the same command plus `pnpm build`.
+Check command: `mise exec -- pnpm check` (Ultracite lint, tsc, Knip, Vitest). CI runs the same command plus `pnpm build` and `pnpm smoke`. Update `EXPECTED_TOOLS` in `scripts/smoke.ts` when you add or remove a tool.
+
+Commits and PR titles are Conventional Commits (`feat:`, `fix:`, `chore:`). Pull requests are squash-merged with the title as the commit, and release-please builds releases from them. Never publish to npm by hand; see `docs/releasing.md`.
 
 ## Invariants
 

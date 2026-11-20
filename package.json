@@ -2,7 +2,22 @@
   "name": "shopify-partners-mcp",
   "version": "0.1.0",
   "description": "Read-only MCP server for the Shopify Partner API: apps, earnings, install and billing events, subscriptions.",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "partner-api",
+    "shopify",
+    "shopify-partners"
+  ],
+  "homepage": "https://github.com/amitray007/shopify-partners-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/amitray007/shopify-partners-mcp/issues"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amitray007/shopify-partners-mcp.git"
+  },
   "bin": {
     "shopify-partners-mcp": "dist/index.js"
   },
@@ -19,7 +34,8 @@
     "test": "vitest run",
     "knip": "knip",
     "check": "pnpm lint && pnpm typecheck && pnpm knip && pnpm test",
-    "fix": "ultracite fix"
+    "fix": "ultracite fix",
+    "smoke": "node scripts/smoke.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.4.0",

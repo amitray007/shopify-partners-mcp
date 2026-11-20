@@ -64,7 +64,7 @@ List tools return one page and a `nextCursor`. Summary tools read up to 2,000 ro
 }
 ```
 
-The package is not on npm yet. Until it is, build from source and point `command` at `node /path/to/shopify-partners-mcp/dist/index.js`.
+To run from source instead, build it and set `command` to `node` with `args` `["/path/to/shopify-partners-mcp/dist/index.js"]`.
 
 | Variable | Required | Notes |
 | --- | --- | --- |
@@ -90,7 +90,10 @@ mise install
 pnpm install
 pnpm check   # lint, types, unused code, tests
 pnpm build
+pnpm smoke   # start the built server and list its tools
 ```
+
+PR titles must be Conventional Commits; release-please builds versions and the changelog from them. See [docs/releasing.md](docs/releasing.md).
 
 ## License
 
