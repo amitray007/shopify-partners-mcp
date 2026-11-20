@@ -1,0 +1,47 @@
+# Weekly dependency updates, grouped so each week opens at most a few pull requests.
+# Runtime dependency updates use the fix: prefix, so release-please ships them in a patch release.
+# Dev dependency and GitHub Actions updates use chore: and ci:, which do not trigger a release.
+# Majors arrive one per pull request, so each gets its own look.
+# A release must be 7 days old before Dependabot offers it, which keeps a pulled or
+# compromised release out of the update.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: fix
+      prefix-development: chore
+      include: scope
+    open-pull-requests-limit: 5
+    ignore:
+      # The types follow the Node.js major in package.json engines.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+    groups:
+      runtime:
+        dependency-type: production
+        update-types: ["minor", "patch"]
+      development:
+        dependency-type: development
+        update-types: ["minor", "patch"]
+      security-fixes:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ["*"]
